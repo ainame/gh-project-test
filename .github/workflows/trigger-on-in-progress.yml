@@ -38,43 +38,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PROJECT_OWNER="ainame"
-          PROJECT_NUMBER=3
-          ITEM_ID="${{ github.event.projects_v2_item.node_id }}"
-
-          # Fetch project ID, Status field ID, and Done option ID
-          result=$(gh api graphql -f query='
-            query($owner: String!, $number: Int!) {
-              user(login: $owner) {
-                projectV2(number: $number) {
-                  id
-                  fields(first: 20) {
-                    nodes {
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options { id name }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          ' -f owner="$PROJECT_OWNER" -F number="$PROJECT_NUMBER")
-
-          PROJECT_ID=$(echo "$result" | jq -r '.data.user.projectV2.id')
-          FIELD_ID=$(echo "$result" | jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id')
-          DONE_OPTION_ID=$(echo "$result" | jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id')
-
           gh api graphql -f query='
-            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            mutation($itemId: ID!) {
               updateProjectV2ItemFieldValue(input: {
-                projectId: $projectId
+                projectId: "PVT_kwHOAAttlc4BRcsa"
                 itemId: $itemId
-                fieldId: $fieldId
-                value: { singleSelectOptionId: $optionId }
+                fieldId: "PVTSSF_lAHOAAttlc4BRcsazg_RgIg"
+                value: { singleSelectOptionId: "98236657" }
               }) {
                 projectV2Item { id }
               }
             }
-          ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$FIELD_ID" -f optionId="$DONE_OPTION_ID"
+          ' -f itemId="${{ github.event.projects_v2_item.node_id }}"
