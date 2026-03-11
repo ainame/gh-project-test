@@ -14,37 +14,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get file path from issue title
-        id: get-file
+      - name: Resolve issue file path and project IDs
+        id: resolve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          file=$(gh api graphql -f query='
+          result=$(gh api graphql -f query='
             query($nodeId: ID!) {
               node(id: $nodeId) {
-                ... on Issue {
-                  title
+                ... on Issue { title }
+              }
+              user(login: "ainame") {
+                projectV2(number: 3) {
+                  id
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
                 }
               }
             }
-          ' -f nodeId="${{ github.event.projects_v2_item.content_node_id }}" --jq '.data.node.title')
-          echo "file=$file" >> $GITHUB_OUTPUT
+          ' -f nodeId="${{ github.event.projects_v2_item.content_node_id }}")
+
+          echo "file=$(echo "$result" | jq -r '.data.node.title')" >> $GITHUB_OUTPUT
+          echo "project_id=$(echo "$result" | jq -r '.data.user.projectV2.id')" >> $GITHUB_OUTPUT
+          echo "field_id=$(echo "$result" | jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id')" >> $GITHUB_OUTPUT
+          echo "done_id=$(echo "$result" | jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id')" >> $GITHUB_OUTPUT
 
       - name: Cat the file
-        run: cat "${{ steps.get-file.outputs.file }}"
+        run: cat "${{ steps.resolve.outputs.file }}"
 
       - name: Mark project item as Done
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PROJECT_ID=$(gh project list --owner ainame --format json | jq -r '.projects[] | select(.number == 3) | .id')
-          FIELDS=$(gh project field-list 3 --owner ainame --format json)
-          FIELD_ID=$(echo "$FIELDS" | jq -r '.fields[] | select(.name == "Status") | .id')
-          DONE_ID=$(echo "$FIELDS" | jq -r '.fields[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id')
-
           gh project item-edit \
             --id "${{ github.event.projects_v2_item.node_id }}" \
-            --project-id "$PROJECT_ID" \
-            --field-id "$FIELD_ID" \
-            --single-select-option-id "$DONE_ID"
+            --project-id "${{ steps.resolve.outputs.project_id }}" \
+            --field-id "${{ steps.resolve.outputs.field_id }}" \
+            --single-select-option-id "${{ steps.resolve.outputs.done_id }}"
