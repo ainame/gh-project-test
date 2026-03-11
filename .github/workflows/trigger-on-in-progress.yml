@@ -24,7 +24,7 @@ jobs:
               node(id: $nodeId) {
                 ... on Issue { title }
               }
-              user(login: "ainame") {
+              organization(login: "ainame-org") {
                 projectV2(number: 3) {
                   id
                   fields(first: 20) {
@@ -42,9 +42,9 @@ jobs:
           ' -f nodeId="${{ github.event.projects_v2_item.content_node_id }}")
 
           echo "file=$(echo "$result" | jq -r '.data.node.title')" >> $GITHUB_OUTPUT
-          echo "project_id=$(echo "$result" | jq -r '.data.user.projectV2.id')" >> $GITHUB_OUTPUT
-          echo "field_id=$(echo "$result" | jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .id')" >> $GITHUB_OUTPUT
-          echo "done_id=$(echo "$result" | jq -r '.data.user.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id')" >> $GITHUB_OUTPUT
+          echo "project_id=$(echo "$result" | jq -r '.data.organization.projectV2.id')" >> $GITHUB_OUTPUT
+          echo "field_id=$(echo "$result" | jq -r '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .id')" >> $GITHUB_OUTPUT
+          echo "done_id=$(echo "$result" | jq -r '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id')" >> $GITHUB_OUTPUT
 
       - name: Cat the file
         run: cat "${{ steps.resolve.outputs.file }}"
